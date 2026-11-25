@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gesturecontrol.app.ui.theme.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen() {
     Column(
@@ -51,11 +52,11 @@ fun MainScreen() {
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             QuickActionCard(Icons.Default.Lock, "Жесты заблокированы", Modifier.weight(1f))
-            QuickActionCard(Icons.Default.Target, "Профиль YouTube", Modifier.weight(1f))
+            QuickActionCard(Icons.Default.Star, "Профиль YouTube", Modifier.weight(1f)) // Исправлено: Star вместо Target
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            AppControlCard(Icons.Default.VideoCamera, "YouTube", "MediaSession", {})
+            AppControlCard(Icons.Default.Videocam, "YouTube", "MediaSession", {}) // Исправлено: Videocam вместо VideoCamera
             AppControlCard(Icons.Default.Tv, "Lampa", "UI Click", {})
             AppControlCard(Icons.Default.Settings, "Системные команды", "Accessibility Service", {})
         }
@@ -73,6 +74,7 @@ fun QuickActionCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppControlCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().height(72.dp), colors = CardDefaults.cardColors(containerColor = DarkGray), shape = RoundedCornerShape(12.dp), onClick = onClick) {
