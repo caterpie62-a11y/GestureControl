@@ -1,6 +1,7 @@
 package com.gesturecontrol.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,7 +17,11 @@ import com.gesturecontrol.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    isServiceRunning: Boolean,
+    onToggleService: () -> Unit,
+    onOpenPermissions: () -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxSize().background(Black).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -35,15 +40,24 @@ fun MainScreen() {
             ) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(modifier = Modifier.size(8.dp), shape = RoundedCornerShape(50), color = Success) {}
+                        Surface(modifier = Modifier.size(8.dp), shape = RoundedCornerShape(50), color = if (isServiceRunning) Success else TextTertiary) {}
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Служба активна", fontSize = 18.sp, fontWeight = FontWeight.Medium, color = White)
+                        Text(
+                            text = if (isServiceRunning) "Служба активна" else "Служба остановлена", 
+                            fontSize = 18.sp, 
+                            fontWeight = FontWeight.Medium, 
+                            color = White
+                        )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "Работает 2ч 34мин", fontSize = 14.sp, color = TextSecondary)
+                    Text(text = "Нажмите кнопку для управления", fontSize = 14.sp, color = TextSecondary)
                 }
-                Button(onClick = { }, colors = ButtonDefaults.buttonColors(containerColor = Red), shape = RoundedCornerShape(8.dp)) {
-                    Text(text = "ВЫКЛЮЧИТЬ", color = White, fontWeight = FontWeight.Medium)
+                Button(
+                    onClick = onToggleService, 
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isServiceRunning) RedDark else Red), 
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(text = if (isServiceRunning) "ВЫКЛЮЧИТЬ" else "ВКЛЮЧИТЬ", color = White, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -51,21 +65,26 @@ fun MainScreen() {
         Text(text = "Быстрые действия", fontSize = 18.sp, fontWeight = FontWeight.Medium, color = White, modifier = Modifier.padding(top = 8.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            QuickActionCard(Icons.Default.Lock, "Жесты заблокированы", Modifier.weight(1f))
-            QuickActionCard(Icons.Default.Star, "Профиль YouTube", Modifier.weight(1f)) // Исправлено: Star вместо Target
+            QuickActionCard(Icons.Default.Lock, "Настроить разрешения", Modifier.weight(1f), onClick = onOpenPermissions)
+            QuickActionCard(Icons.Default.Star, "Профиль YouTube", Modifier.weight(1f), onClick = { /* Пока заглушка */ })
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            AppControlCard(Icons.Default.Videocam, "YouTube", "MediaSession", {}) // Исправлено: Videocam вместо VideoCamera
+            AppControlCard(Icons.Default.Videocam, "YouTube", "MediaSession", {})
             AppControlCard(Icons.Default.Tv, "Lampa", "UI Click", {})
             AppControlCard(Icons.Default.Settings, "Системные команды", "Accessibility Service", {})
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QuickActionCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, modifier: Modifier = Modifier) {
-    Card(modifier = modifier.height(80.dp), colors = CardDefaults.cardColors(containerColor = DarkGray), shape = RoundedCornerShape(12.dp)) {
+fun QuickActionCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Card(
+        modifier = modifier.height(80.dp).clickable { onClick() }, 
+        colors = CardDefaults.cardColors(containerColor = DarkGray), 
+        shape = RoundedCornerShape(12.dp)
+    ) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Icon(imageVector = icon, contentDescription = title, tint = Red, modifier = Modifier.size(32.dp))
             Spacer(modifier = Modifier.height(8.dp))
@@ -77,7 +96,11 @@ fun QuickActionCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppControlCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().height(72.dp), colors = CardDefaults.cardColors(containerColor = DarkGray), shape = RoundedCornerShape(12.dp), onClick = onClick) {
+    Card(
+        modifier = Modifier.fillMaxWidth().height(72.dp).clickable { onClick() }, 
+        colors = CardDefaults.cardColors(containerColor = DarkGray), 
+        shape = RoundedCornerShape(12.dp)
+    ) {
         Row(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(imageVector = icon, contentDescription = title, tint = Red, modifier = Modifier.size(40.dp))
