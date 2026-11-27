@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#66000000">
+
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center">
+
+        <!-- Центральная кнопка закрытия -->
+        <ImageButton
+            android:id="@+id/btn_close"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:layout_gravity="center"
+            android:background="@drawable/menu_button_glass"
+            android:src="@drawable/ic_close"
+            android:scaleType="centerInside"
+            android:padding="20dp"
+            android:elevation="8dp" />
+
+        <!-- Назад (вверху) -->
+        <ImageButton
+            android:id="@+id/btn_back"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:layout_gravity="center"
+            android:background="@drawable/menu_button_glass"
+            android:src="@drawable/ic_back"
+            android:scaleType="centerInside"
+            android:padding="18dp"
+            android:elevation="8dp"
+            android:layout_marginTop="-140dp" />
+
+        <!-- Домой (внизу) -->
+        <ImageButton
+            android:id="@+id/btn_home"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:layout_gravity="center"
+            android:background="@drawable/menu_button_glass"
+            android:src="@drawable/ic_home"
+            android:scaleType="centerInside"
+            android:padding="18dp"
+            android:elevation="8dp"
+            android:layout_marginBottom="-140dp" />
+
+        <!-- Громкость + (справа) -->
+        <ImageButton
+            android:id="@+id/btn_volume_up"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:layout_gravity="center"
+            android:background="@drawable/menu_button_glass"
+            android:src="@drawable/ic_volume_up"
+            android:scaleType="centerInside"
+            android:padding="18dp"
+            android:elevation="8dp"
+            android:layout_marginStart="140dp" />
+
+        <!-- Громкость - (слева) -->
+        <ImageButton
+            android:id="@+id/btn_volume_down"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:layout_gravity="center"
+            android:background="@drawable/menu_button_glass"
+            android:src="@drawable/ic_volume_down"
+            android:scaleType="centerInside"
+            android:padding="18dp"
+            android:elevation="8dp"
+            android:layout_marginEnd="140dp" />
+
+        <!-- Play/Pause (диагональ右上) -->
+        <ImageButton
+            android:id="@+id/btn_play_pause"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:layout_gravity="center"
+            android:background="@drawable/menu_button_glass_accent"
+            android:src="@drawable/ic_play_pause"
+            android:scaleType="centerInside"
+            android:padding="18dp"
+            android:elevation="8dp"
+            android:layout_marginStart="99dp"
+            android:layout_marginTop="-99dp" />
+
+    </FrameLayout>
+
+</FrameLayout>
