@@ -10,41 +10,62 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.media.AudioManager
+import android.os.Build
 import android.os.IBinder
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.OvershootInterpolator
-import android.widget.ImageView
-import android.widget.LinearLayout
+import android.widget.ImageButton
 import android.widget.Toast
 import com.gesturecontrol.app.R
+import com.gesturecontrol.app.utils.PreferencesManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class OverlayService : Service() {
 
     private var windowManager: WindowManager? = null
     private var floatingButton: View? = null
     private var isShowing = false
-    
-    // Кнопки кругового меню
-    private val menuButtons = mutableListOf<View>()
+
+    // Перетаскивание
+    private var initialX = 0
+    private var initialY = 0
+    private var initialTouchX = 0f
+    private var initialTouchY = 0f
+    private var isDragging = false
+    private var params: WindowManager.LayoutParams? = null
+
+    // Меню
+    private var menuView: View? = null
     private var isMenuVisible = false
-    
-    // Для распознавания жестов
+
+    // Жесты
     private var lastTapTime = 0L
     private var longPressTimer: android.os.Handler? = null
     private var isLongPressTriggered = false
-    
+
+    // Позиция
+    private lateinit var prefsManager: PreferencesManager
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
     companion object {
         private const val CHANNEL_ID = "GestureControlChannel"
         private const val NOTIFICATION_ID = 1001
         const val ACTION_SHOW = "SHOW"
         const val ACTION_HIDE = "HIDE"
-        private const val LONG_PRESS_DURATION = 1000L // 1 секунда
+        private const val LONG_PRESS_DURATION = 600L
         private const val DOUBLE_TAP_THRESHOLD = 300L
-        private const val MENU_RADIUS = 150 // Расстояние кнопок меню от центра
+        private const val DRAG_THRESHOLD = 15f
+        const val OUR_PACKAGE = "com.gesturecontrol.app"
 
         fun start(context: Context) {
             val intent = Intent(context, OverlayService::class.java).apply { action = ACTION_SHOW }
@@ -61,6 +82,7 @@ class OverlayService : Service() {
         super.onCreate()
         createNotificationChannel()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        prefsManager = PreferencesManager(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -71,63 +93,120 @@ class OverlayService : Service() {
         return START_STICKY
     }
 
-    private fun showOverlay() {
-        if (isShowing) return
-        
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        ).apply { 
-            gravity = Gravity.TOP or Gravity.START
-            x = 100
-            y = 200 
+    private suspend fun getInitialPosition(): Pair<Int, Int> {
+        val savedX = prefsManager.buttonX.first()
+        val savedY = prefsManager.buttonY.first()
+
+        if (savedX > 0 && savedY > 0) {
+            return Pair(savedX.toInt(), savedY.toInt())
         }
 
-        floatingButton = LayoutInflater.from(this).inflate(R.layout.floating_button, null)
-        floatingButton?.setOnTouchListener { _, event -> handleTouch(event); true }
-        windowManager?.addView(floatingButton, params)
-        isShowing = true
-        
-        startForeground(NOTIFICATION_ID, createNotification())
-        Toast.makeText(this, "Кнопка активна. Долгое нажатие для меню.", Toast.LENGTH_LONG).show()
+        // Правый нижний угол по умолчанию
+        val displayMetrics = resources.displayMetrics
+        val screenWidth = displayMetrics.widthPixels
+        val screenHeight = displayMetrics.heightPixels
+        val buttonSize = 150
+        val offsetX = 60
+        val offsetY = 250
+        return Pair(screenWidth - buttonSize - offsetX, screenHeight - buttonSize - offsetY)
+    }
+
+    private fun showOverlay() {
+        if (isShowing) return
+
+        serviceScope.launch {
+            val (startX, startY) = getInitialPosition()
+
+            val buttonParams = WindowManager.LayoutParams(
+                150, 150,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                x = startX
+                y = startY
+            }
+
+            params = buttonParams
+
+            floatingButton = LayoutInflater.from(this@OverlayService)
+                .inflate(R.layout.floating_button, null)
+
+            floatingButton?.setOnTouchListener { _, event ->
+                handleTouch(event, buttonParams)
+                true
+            }
+
+            windowManager?.addView(floatingButton, buttonParams)
+            isShowing = true
+
+            startForeground(NOTIFICATION_ID, createNotification())
+            Toast.makeText(this@OverlayService, "Кнопка активна. Долгое нажатие — меню.", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun hideOverlay() {
         if (!isShowing) return
-        
-        // Удаляем кнопки меню если они есть
-        menuButtons.forEach { windowManager?.removeView(it) }
-        menuButtons.clear()
-        
+        hideRadialMenu()
         floatingButton?.let { windowManager?.removeView(it) }
+        floatingButton = null
         isShowing = false
         stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
-    private fun handleTouch(event: MotionEvent): Boolean {
+    private fun handleTouch(event: MotionEvent, buttonParams: WindowManager.LayoutParams): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
+                initialX = buttonParams.x
+                initialY = buttonParams.y
+                initialTouchX = event.rawX
+                initialTouchY = event.rawY
+                isDragging = false
                 isLongPressTriggered = false
+
                 longPressTimer = android.os.Handler()
                 longPressTimer?.postDelayed({
-                    if (!isLongPressTriggered) {
+                    if (!isLongPressTriggered && !isDragging) {
                         isLongPressTriggered = true
                         showRadialMenu()
                     }
                 }, LONG_PRESS_DURATION)
             }
+            MotionEvent.ACTION_MOVE -> {
+                val dx = event.rawX - initialTouchX
+                val dy = event.rawY - initialTouchY
+
+                if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
+                    isDragging = true
+                    longPressTimer?.removeCallbacksAndMessages(null)
+
+                    val newX = initialX + dx.toInt()
+                    val newY = initialY + dy.toInt()
+
+                    // Ограничиваем границами экрана
+                    val displayMetrics = resources.displayMetrics
+                    val clampedX = newX.coerceIn(0, displayMetrics.widthPixels - 150)
+                    val clampedY = newY.coerceIn(0, displayMetrics.heightPixels - 150)
+
+                    buttonParams.x = clampedX
+                    buttonParams.y = clampedY
+                    windowManager?.updateViewLayout(floatingButton, buttonParams)
+                }
+            }
             MotionEvent.ACTION_UP -> {
                 longPressTimer?.removeCallbacksAndMessages(null)
-                if (!isLongPressTriggered) {
+
+                if (isDragging) {
+                    // Сохраняем позицию после перетаскивания
+                    serviceScope.launch {
+                        prefsManager.saveButtonPosition(buttonParams.x.toFloat(), buttonParams.y.toFloat())
+                    }
+                } else if (!isLongPressTriggered) {
                     val currentTime = System.currentTimeMillis()
                     if (currentTime - lastTapTime < DOUBLE_TAP_THRESHOLD) {
-                        // Двойное нажатие
                         performAction("double_tap")
                     } else {
-                        // Одиночное нажатие
                         performAction("single_tap")
                     }
                     lastTapTime = currentTime
@@ -143,199 +222,140 @@ class OverlayService : Service() {
     private fun showRadialMenu() {
         if (isMenuVisible) return
         isMenuVisible = true
-        
-        // Вибрация при открытии меню
-        val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            vibrator.vibrate(android.os.VibrationEffect.createOneShot(50, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
-        } else {
-            @Suppress("DEPRECATION")
-            vibrator.vibrate(50)
-        }
-        
-        // Создаем 4 кнопки меню
-        val actions = listOf(
-            Pair("up", "Назад"),
-            Pair("down", "Домой"),
-            Pair("left", "Громкость -"),
-            Pair("right", "Громкость +")
+
+        vibrate(50)
+
+        menuView = LayoutInflater.from(this).inflate(R.layout.radial_menu, null)
+
+        val menuParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
         )
-        
-        val centerX = floatingButton?.x?.toInt() ?: 100
-        val centerY = floatingButton?.y?.toInt() ?: 200
-        
-        actions.forEachIndexed { index, (direction, label) ->
-            val button = createMenuButton(label)
-            val params = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                PixelFormat.TRANSLUCENT
-            ).apply {
-                gravity = Gravity.TOP or Gravity.START
-            }
-            
-            // Позиционируем кнопки по кругу
-            when (direction) {
-                "up" -> {
-                    params.x = centerX
-                    params.y = centerY - MENU_RADIUS
+
+        windowManager?.addView(menuView, menuParams)
+
+        // Настраиваем кнопки
+        setupMenuButton(R.id.btn_back, "back")
+        setupMenuButton(R.id.btn_home, "home")
+        setupMenuButton(R.id.btn_volume_up, "volume_up")
+        setupMenuButton(R.id.btn_volume_down, "volume_down")
+        setupMenuButton(R.id.btn_play_pause, "play_pause")
+        setupMenuButton(R.id.btn_close, "close")
+
+        // Анимация появления кнопок
+        val buttons = listOf(
+            R.id.btn_back, R.id.btn_home, R.id.btn_volume_up,
+            R.id.btn_volume_down, R.id.btn_play_pause, R.id.btn_close
+        )
+        buttons.forEachIndexed { index, id ->
+            menuView?.findViewById<ImageButton>(id)?.let { btn ->
+                btn.alpha = 0f
+                btn.scaleX = 0f
+                btn.scaleY = 0f
+                ObjectAnimator.ofFloat(btn, "alpha", 0f, 1f).apply {
+                    duration = 200
+                    startDelay = index * 50L
+                    start()
                 }
-                "down" -> {
-                    params.x = centerX
-                    params.y = centerY + MENU_RADIUS
+                ObjectAnimator.ofFloat(btn, "scaleX", 0f, 1f).apply {
+                    duration = 300
+                    startDelay = index * 50L
+                    interpolator = OvershootInterpolator(1.5f)
+                    start()
                 }
-                "left" -> {
-                    params.x = centerX - MENU_RADIUS
-                    params.y = centerY
+                ObjectAnimator.ofFloat(btn, "scaleY", 0f, 1f).apply {
+                    duration = 300
+                    startDelay = index * 50L
+                    interpolator = OvershootInterpolator(1.5f)
+                    start()
                 }
-                "right" -> {
-                    params.x = centerX + MENU_RADIUS
-                    params.y = centerY
-                }
-            }
-            
-            button.setOnTouchListener { _, event ->
-                if (event.action == MotionEvent.ACTION_UP) {
-                    performAction(direction)
-                    hideRadialMenu()
-                }
-                true
-            }
-            
-            windowManager?.addView(button, params)
-            menuButtons.add(button)
-            
-            // Анимация появления
-            button.alpha = 0f
-            button.scaleX = 0f
-            button.scaleY = 0f
-            ObjectAnimator.ofFloat(button, "alpha", 0f, 1f).apply {
-                duration = 200
-                start()
-            }
-            ObjectAnimator.ofFloat(button, "scaleX", 0f, 1f).apply {
-                duration = 200
-                interpolator = OvershootInterpolator()
-                start()
-            }
-            ObjectAnimator.ofFloat(button, "scaleY", 0f, 1f).apply {
-                duration = 200
-                interpolator = OvershootInterpolator()
-                start()
             }
         }
     }
 
     private fun hideRadialMenu() {
-        if (!isMenuVisible) return
+        if (!isMenuVisible || menuView == null) return
         isMenuVisible = false
-        
-        menuButtons.forEach { button ->
-            ObjectAnimator.ofFloat(button, "alpha", 1f, 0f).apply {
-                duration = 150
-                start()
-            }
-            ObjectAnimator.ofFloat(button, "scaleX", 1f, 0f).apply {
-                duration = 150
-                start()
-            }
-            ObjectAnimator.ofFloat(button, "scaleY", 1f, 0f).apply {
-                duration = 150
-                start()
+
+        val buttons = listOf(
+            R.id.btn_back, R.id.btn_home, R.id.btn_volume_up,
+            R.id.btn_volume_down, R.id.btn_play_pause, R.id.btn_close
+        )
+        buttons.forEach { id ->
+            menuView?.findViewById<ImageButton>(id)?.let { btn ->
+                ObjectAnimator.ofFloat(btn, "alpha", 1f, 0f).apply { duration = 150; start() }
+                ObjectAnimator.ofFloat(btn, "scaleX", 1f, 0f).apply { duration = 150; start() }
+                ObjectAnimator.ofFloat(btn, "scaleY", 1f, 0f).apply { duration = 150; start() }
             }
         }
-        
-        // Удаляем кнопки после анимации
+
         android.os.Handler().postDelayed({
-            menuButtons.forEach { windowManager?.removeView(it) }
-            menuButtons.clear()
+            windowManager?.removeView(menuView)
+            menuView = null
         }, 200)
     }
 
-    private fun createMenuButton(label: String): View {
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(16, 16, 16, 16)
-            setBackgroundColor(Color.parseColor("#CC1A1A1A")) // Полупрозрачный темный
+    private fun setupMenuButton(buttonId: Int, action: String) {
+        menuView?.findViewById<ImageButton>(buttonId)?.setOnClickListener {
+            vibrate(30)
+            performAction(action)
+            hideRadialMenu()
         }
-        
-        val icon = ImageView(this).apply {
-            setImageResource(R.drawable.ic_notification)
-            setColorFilter(Color.WHITE)
-        }
-        
-        val layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply {
-            setMargins(0, 0, 0, 8)
-        }
-        layout.addView(icon, layoutParams)
-        
-        val textView = android.widget.TextView(this).apply {
-            text = label
-            setTextColor(Color.WHITE)
-            textSize = 12f
-            gravity = Gravity.CENTER
-        }
-        layout.addView(textView)
-        
-        // Делаем круглым
-        val params = WindowManager.LayoutParams(
-            120, 120,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        )
-        
-        return layout
     }
 
     private fun performAction(action: String) {
         when (action) {
-            "up" -> {
-                // Назад
+            "back" -> {
                 GestureAccessibilityService.performGlobalAction(
                     android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK
                 )
-                Toast.makeText(this, "Назад", Toast.LENGTH_SHORT).show()
+                showToast("⬅️ Назад")
             }
-            "down" -> {
-                // Домой
+            "home" -> {
                 GestureAccessibilityService.performGlobalAction(
                     android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME
                 )
-                Toast.makeText(this, "Домой", Toast.LENGTH_SHORT).show()
+                showToast("🏠 Домой")
             }
-            "left" -> {
-                // Громкость -
+            "volume_up" -> {
                 val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                audioManager.adjustStreamVolume(
-                    AudioManager.STREAM_MUSIC,
-                    AudioManager.ADJUST_LOWER,
-                    0
-                )
-                Toast.makeText(this, "Громкость -", Toast.LENGTH_SHORT).show()
+                audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, 0)
+                showToast("🔊 Громкость +")
             }
-            "right" -> {
-                // Громкость +
+            "volume_down" -> {
                 val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                audioManager.adjustStreamVolume(
-                    AudioManager.STREAM_MUSIC,
-                    AudioManager.ADJUST_RAISE,
-                    0
-                )
-                Toast.makeText(this, "Громкость +", Toast.LENGTH_SHORT).show()
+                audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, 0)
+                showToast("🔉 Громкость -")
             }
-            "single_tap" -> {
-                Toast.makeText(this, "Одиночное нажатие", Toast.LENGTH_SHORT).show()
+            "play_pause" -> {
+                val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                val intent = Intent("android.intent.action.MEDIA_BUTTON")
+                val keyEvent = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+                intent.putExtra(Intent.EXTRA_KEY_EVENT, keyEvent)
+                sendOrderedBroadcast(intent, null)
+                showToast("⏯ Play/Pause")
             }
-            "double_tap" -> {
-                Toast.makeText(this, "Двойное нажатие", Toast.LENGTH_SHORT).show()
-            }
+            "close" -> hideRadialMenu()
+            "single_tap" -> showToast("👆 Одиночное нажатие")
+            "double_tap" -> showToast("👆👆 Двойное нажатие")
+        }
+    }
+
+    private fun showToast(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun vibrate(duration: Long) {
+        val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(duration)
         }
     }
 
@@ -347,7 +367,7 @@ class OverlayService : Service() {
     private fun createNotification(): Notification {
         return Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("Gesture Control активен")
-            .setContentText("Долгое нажатие для меню")
+            .setContentText("Долгое нажатие — меню")
             .setSmallIcon(R.drawable.ic_notification)
             .build()
     }
