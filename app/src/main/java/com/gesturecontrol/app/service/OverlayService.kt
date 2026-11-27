@@ -183,9 +183,10 @@ class OverlayService : Service() {
             setBackgroundResource(R.drawable.menu_backdrop)
             setOnClickListener { hideRadialMenu() }
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            backdrop.setRenderEffect(RenderEffect.createBlurEffect(dp(12f).toFloat(), dp(12f).toFloat(), Shader.TileMode.CLAMP))
-        }
+       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    val blurRadius = 12f * resources.displayMetrics.density
+    backdrop.setRenderEffect(RenderEffect.createBlurEffect(blurRadius, blurRadius, Shader.TileMode.CLAMP))
+}
         val backdropParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
