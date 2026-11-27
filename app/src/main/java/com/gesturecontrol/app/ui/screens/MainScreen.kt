@@ -43,21 +43,27 @@ fun MainScreen(
                         Surface(modifier = Modifier.size(8.dp), shape = RoundedCornerShape(50), color = if (isServiceRunning) Success else TextTertiary) {}
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isServiceRunning) "Служба активна" else "Служба остановлена", 
-                            fontSize = 18.sp, 
-                            fontWeight = FontWeight.Medium, 
+                            text = if (isServiceRunning) "Служба активна" else "Служба остановлена",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
                             color = White
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "Нажмите кнопку для управления", fontSize = 14.sp, color = TextSecondary)
+                    Text(text = "Долгое нажатие на кнопку — меню", fontSize = 14.sp, color = TextSecondary)
                 }
                 Button(
-                    onClick = onToggleService, 
-                    colors = ButtonDefaults.buttonColors(containerColor = if (isServiceRunning) RedDark else Red), 
-                    shape = RoundedCornerShape(8.dp)
+                    onClick = onToggleService,
+                    colors = ButtonDefaults.buttonColors(containerColor = if (isServiceRunning) RedDark else Red),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.width(110.dp)
                 ) {
-                    Text(text = if (isServiceRunning) "ВЫКЛЮЧИТЬ" else "ВКЛЮЧИТЬ", color = White, fontWeight = FontWeight.Medium)
+                    Text(
+                        text = if (isServiceRunning) "ВЫКЛ" else "ВКЛ",
+                        color = White,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp
+                    )
                 }
             }
         }
@@ -65,8 +71,8 @@ fun MainScreen(
         Text(text = "Быстрые действия", fontSize = 18.sp, fontWeight = FontWeight.Medium, color = White, modifier = Modifier.padding(top = 8.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            QuickActionCard(Icons.Default.Lock, "Настроить разрешения", Modifier.weight(1f), onClick = onOpenPermissions)
-            QuickActionCard(Icons.Default.Star, "Профиль YouTube", Modifier.weight(1f), onClick = { /* Пока заглушка */ })
+            QuickActionCard(Icons.Default.Lock, "Разрешения", Modifier.weight(1f), onClick = onOpenPermissions)
+            QuickActionCard(Icons.Default.Star, "YouTube", Modifier.weight(1f), onClick = { })
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -81,8 +87,8 @@ fun MainScreen(
 @Composable
 fun QuickActionCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Card(
-        modifier = modifier.height(80.dp).clickable { onClick() }, 
-        colors = CardDefaults.cardColors(containerColor = DarkGray), 
+        modifier = modifier.height(80.dp).clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = DarkGray),
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
@@ -97,8 +103,8 @@ fun QuickActionCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title
 @Composable
 fun AppControlCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth().height(72.dp).clickable { onClick() }, 
-        colors = CardDefaults.cardColors(containerColor = DarkGray), 
+        modifier = Modifier.fillMaxWidth().height(72.dp).clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = DarkGray),
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
