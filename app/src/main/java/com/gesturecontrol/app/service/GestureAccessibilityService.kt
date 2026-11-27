@@ -8,6 +8,19 @@ import android.view.accessibility.AccessibilityNodeInfo
 
 class GestureAccessibilityService : AccessibilityService() {
 
+    companion object {
+        private var instance: GestureAccessibilityService? = null
+
+        fun performGlobalAction(action: Int): Boolean {
+            return instance?.performGlobalAction(action) ?: false
+        }
+    }
+
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        instance = this
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event?.let {
             if (it.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
