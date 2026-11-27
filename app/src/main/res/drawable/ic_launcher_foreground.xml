@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Красный круг-кнопка -->
+    <path android:fillColor="#FFE53935"
+        android:pathData="M54,30a24,24 0,1 0,0.001 0z"/>
+    <!-- Белая иконка жеста по центру -->
+    <group android:scaleX="1.8" android:scaleY="1.8" android:translateX="-30" android:translateY="-30">
+        <path android:fillColor="#FFFFFFFF"
+            android:pathData="M40,45.24V41.5C40,40.12 41.12,39 42.5,39S45,40.12 45,41.5v3.74c1.21,-0.81 2,-2.18 2,-3.74C47,39.01 44.99,37 42.5,37S38,39.01 38,41.5c0,1.56 0.79,2.93 2,3.74zM49.84,49.87l-4.54,-2.26c-0.17,-0.07 -0.35,-0.11 -0.54,-0.11H44v-6C44,40.67 43.33,40 42.5,40S41,40.67 41,41.5v7.11l-4.3,-1.67c-0.18,-0.09 -0.4,-0.06 -0.56,0.05 -0.32,0.24 -0.39,0.7 -0.16,1.02l2.77,4.16c0.17,0.26 0.46,0.42 0.77,0.42h5.87c0.24,0 0.47,-0.07 0.66,-0.21l3.52,-2.54c0.32,-0.23 0.4,-0.7 0.16,-1.02 -0.1,-0.14 -0.25,-0.23 -0.41,-0.27z"/>
+    </group>
+</vector>
