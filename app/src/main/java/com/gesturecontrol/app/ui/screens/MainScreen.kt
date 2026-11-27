@@ -28,43 +28,36 @@ fun MainScreen(
     ) {
         Text(text = "Gesture Control", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = White)
 
+        // Кнопка ВКЛ/ВЫКЛ — сверху, во всю ширину
+        Button(
+            onClick = onToggleService,
+            colors = ButtonDefaults.buttonColors(containerColor = if (isServiceRunning) RedDark else Red),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().height(52.dp)
+        ) {
+            Text(
+                text = if (isServiceRunning) "ВЫКЛЮЧИТЬ СЛУЖБУ" else "ВКЛЮЧИТЬ СЛУЖБУ",
+                color = White, fontWeight = FontWeight.Medium, fontSize = 15.sp
+            )
+        }
+
+        // Карточка статуса
         Card(
-            modifier = Modifier.fillMaxWidth().height(120.dp),
+            modifier = Modifier.fillMaxWidth().height(96.dp),
             colors = CardDefaults.cardColors(containerColor = DarkGray),
             shape = RoundedCornerShape(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxSize().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(modifier = Modifier.size(8.dp), shape = RoundedCornerShape(50), color = if (isServiceRunning) Success else TextTertiary) {}
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (isServiceRunning) "Служба активна" else "Служба остановлена",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = White
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(text = "Долгое нажатие на кнопку — меню", fontSize = 14.sp, color = TextSecondary)
-                }
-                Button(
-                    onClick = onToggleService,
-                    colors = ButtonDefaults.buttonColors(containerColor = if (isServiceRunning) RedDark else Red),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.width(110.dp)
-                ) {
+            Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Center) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(modifier = Modifier.size(8.dp), shape = RoundedCornerShape(50), color = if (isServiceRunning) Success else TextTertiary) {}
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isServiceRunning) "ВЫКЛ" else "ВКЛ",
-                        color = White,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp
+                        text = if (isServiceRunning) "Служба активна" else "Служба остановлена",
+                        fontSize = 18.sp, fontWeight = FontWeight.Medium, color = White
                     )
                 }
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(text = "Долгое нажатие на кнопку — меню", fontSize = 14.sp, color = TextSecondary)
             }
         }
 
@@ -87,14 +80,14 @@ fun MainScreen(
 @Composable
 fun QuickActionCard(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Card(
-        modifier = modifier.height(80.dp).clickable { onClick() },
+        modifier = modifier.height(96.dp).clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = DarkGray),
         shape = RoundedCornerShape(12.dp)
     ) {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(imageVector = icon, contentDescription = title, tint = Red, modifier = Modifier.size(32.dp))
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = title, fontSize = 12.sp, color = White, fontWeight = FontWeight.Medium)
+        Column(modifier = Modifier.fillMaxSize().padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Icon(imageVector = icon, contentDescription = title, tint = Red, modifier = Modifier.size(30.dp))
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(text = title, fontSize = 13.sp, color = White, fontWeight = FontWeight.Medium, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
     }
 }
